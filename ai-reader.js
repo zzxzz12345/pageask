@@ -7,6 +7,7 @@ const AIReader = (() => {
   const sessionId=globalThis.crypto?.randomUUID?.()||`${Date.now()}-${Math.random()}`;
   let sequence=0,lastSentPage=null,progressController=null;
   let checkedPages=new Set();
+  let connection=null;
   const esc=value=>escapeHTML(String(value??''));
   async function request(path,options={}) {
     const timeout=AbortSignal.timeout(30000);
@@ -89,7 +90,11 @@ const AIReader = (() => {
       streamConnected=false;void poll(); // EventSource reconnects and replays missed IDs.
     };
   }
-  async function connect(metadata,record) {
+  function connect(metadata,record) {
+    connection=connectBook(metadata,record);
+    return connection;
+  }
+  async function connectBook(metadata,record) {
     const current=++version;
     progressController?.abort();lastSentPage=null;
     closeEvents();clearTimeout(timer);documentId=null;cache=new Map();knowledge=[];latest=null;busy=false;pollAgain=false;
@@ -123,6 +128,40 @@ const AIReader = (() => {
       pageHighlights=[];
       paintHighlights();renderCounts();
     }
+  }
+  async function ask(payload,onEvent,signal) {
+    const current=version;
+    if(connection)await connection;
+    signal.throwIfAborted();
+    if(current!==version)throw new Error('阅读位置已改变，请重新提问');
+    if(!remote||!health?.configured)throw new Error('请通过本地服务打开阅读器，并在后端配置模型密钥');
+    if(!documentId)throw new Error('原书尚未连接，请稍后重试');
+    const response=await fetch(`/api/books/${documentId}/ask`,{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),
+      signal:AbortSignal.any([signal,AbortSignal.timeout(110000)])});
+    if(!response.ok){
+      const error=await response.json().catch(()=>({}));
+      throw new Error(error.detail||`暂时无法回答 (${response.status})`);
+    }
+    const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',done=false;
+    try{
+      while(!done){
+        const chunk=await reader.read();
+        buffer+=decoder.decode(chunk.value||new Uint8Array(),{stream:!chunk.done});
+        buffer=buffer.replace(/\r\n/g,'\n');
+        let boundary;
+        while((boundary=buffer.indexOf('\n\n'))>=0){
+          const block=buffer.slice(0,boundary);buffer=buffer.slice(boundary+2);
+          const data=block.split('\n').filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n');
+          if(!data)continue;
+          const event=JSON.parse(data);
+          if(event.type==='error')throw new Error(event.message||'回答未完成，请重试');
+          if(event.type==='done'){done=true;break;}
+          onEvent(event);
+        }
+        if(chunk.done&&!done)throw new Error('连接已中断，已收到的回答已保留，可重新提问');
+      }
+    }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
   }
   async function pageChanged({restart=false,force=false}={}) {
     refreshPage();
@@ -216,5 +255,5 @@ const AIReader = (() => {
   addEventListener('pageshow',event=>{
     if(event.persisted&&remote&&documentId)startEvents(version,documentId);
   });
-  return {connect,pageChanged,pageRendered,enabled:()=>remote,hasPage:(number=pageNumber)=>cache.has(number),pageHighlights:(number=pageNumber)=>cache.get(number)?.result.annotations.map(a=>({...a,concepts:a.knowledge_ids}))||[],renderKnowledge,concept};
+  return {connect,ask,pageChanged,pageRendered,enabled:()=>remote,hasPage:(number=pageNumber)=>cache.has(number),pageHighlights:(number=pageNumber)=>cache.get(number)?.result.annotations.map(a=>({...a,concepts:a.knowledge_ids}))||[],renderKnowledge,concept};
 })();

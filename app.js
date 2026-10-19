@@ -12,7 +12,7 @@ if (!Object.keys(restored).length) {
     restored.annotations = {[`${SAMPLE_BOOK.id}/55`]: legacy.map((a,i) => ({...a,id:`legacy-${i}`,start:undefined,end:undefined,rects:undefined}))};
   } catch { /* fresh reader */ }
 }
-const state = {notes:[],annotations:{},answers:{},drafts:{},reading:{},bookmarks:{},generated:{},settings:{font:19,zoom:1,highlights:true},...restored};
+const state = {notes:[],annotations:{},answers:{},drafts:{},chats:{},reading:{},bookmarks:{},generated:{},settings:{font:19,zoom:1,highlights:true},...restored};
 state.settings = {font:19,zoom:1,highlights:true,...restored.settings};
 let book = {...SAMPLE_BOOK,kind:'pdf',pageCount:SAMPLE_BOOK.totalPages};
 let pageNumber = 55;
@@ -67,7 +67,7 @@ function pdfPageHighlights(number) {
 function activatePDFPage(view,{notify=true}={}) {
   if(!view)return;
   const changed=pageNumber!==view.number;
-  if(changed){closeBubble();hideSelection();}
+  if(changed){AskReader.stop();closeBubble();hideSelection();}
   if(activePDFView!==view){
     for(const id of ['pdf-page','pdf-canvas','pdf-text-layer','pdf-highlights'])document.getElementById(id)?.removeAttribute('id');
     activePDFView=view;
@@ -139,6 +139,7 @@ async function openPDF(bytes) {
   try{return await task.promise;}catch(error){if(/password|destroyed/i.test(error.message))throw new Error('这份 PDF 需要密码，请先解锁后重新打开。');throw error;}
 }
 async function showBook(metadata, documentProxy = null, initialPage = 1, sourceRecord = null) {
+  AskReader.stop();
   closeBubble();hideSelection();ready=false;
   clearTimeout(pdfProgressTimer);PDFReader.destroy();activePDFView=null;
   $('#notes-drawer').hidden=true;
@@ -437,20 +438,21 @@ function captureSelection() {
   popover.style.top=`${anchor.top>130?anchor.top-50:anchor.bottom+10}px`;
 }
 function hideSelection() { $('#selection-popover').hidden=true;selectionSnapshot=null; }
-function createHighlight(withBubble) {
+function createHighlight(withBubble,tab='question') {
   if(!selectionSnapshot||selectionSnapshot.pageKey!==key())return;
   const snapshot=selectionSnapshot;
   let h=highlights().find(item=>canonical(item.quote)===canonical(snapshot.quote));
   if(!h){h={quote:snapshot.quote,kind:'manual',concepts:[],id:uid(),start:snapshot.start,end:snapshot.end,rects:snapshot.rects,color:selectedColor,custom:true,createdAt:Date.now()};(state.annotations[key()] ||= []).push(h);}
   readingRoot.ownerDocument.getSelection()?.removeAllRanges();hideSelection();paintHighlights();renderCounts();persist();
-  if(withBubble)openBubble(h);else toast('已划线。点一下划线，就能打开思考气泡。');
+  if(withBubble)openBubble(h,0,tab);else toast('已划线。点一下划线，就能打开思考气泡。');
 }
 
-function openBubble(h,rectIndex=0) {
+function openBubble(h,rectIndex=0,tab='question') {
   if(!h||!ready)return;
-  activeHighlight=h;bubbleAnchorIndex=rectIndex;bubbleTab='question';
+  activeHighlight=h;bubbleAnchorIndex=rectIndex;bubbleTab=tab;
   hideSelection();$('#thought-bubble').hidden=false;renderBubble();positionBubble();
   $$('.pdf-mark').forEach(mark=>mark.classList.toggle('is-active',mark.dataset.highlightId===h.id));
+  if(tab==='ask')$('#ask-input')?.focus({preventScroll:true});
 }
 function closeBubble() {
   $('#thought-bubble').hidden=true;activeHighlight=null;
@@ -521,6 +523,8 @@ function renderNoteEditor(draft,hasQuestion,editing) {
 }
 function renderBubble() {
   const original=activeHighlight;if(!original)return;
+  const askInput=document.activeElement?.id==='ask-input'?document.activeElement:null;
+  const selection=askInput?[askInput.selectionStart,askInput.selectionEnd]:null;
   const question=questionForHighlight(original);
   const h=question?{...original,...question,id:original.id,custom:original.custom,quote:original.quote}:original;
   const selected=question?state.answers[answerKey(original)]:undefined;
@@ -531,13 +535,16 @@ function renderBubble() {
   let sourceLabel='我的划线 · 暂无 AI 思考题';
   if(question?.llm)sourceLabel=original.custom?'关联本页 AI 批注 · 原文核验通过':'AI 生成 · 原文核验通过';
   else if(question?.preset)sourceLabel='预设示例题 · 离线模式';
-  $('#bubble-source-label').textContent=sourceLabel;
+  $('#bubble-source-label').textContent=bubbleTab==='ask'?'AI 回答 · 结合所选原文与本页内容':sourceLabel;
+  $('#thought-bubble .bubble-footer>span:last-child').textContent=bubbleTab==='ask'?'理解原文，继续追问':'先判断，再理解';
   $('#bubble-delete').hidden=!original.custom;$('#bubble-delete').innerHTML=icon('trash');$('#bubble-delete').title='删除这条划线';
   let body;
   if(bubbleTab==='question')body=`<div class="bubble-question">${question?renderQuestion(h,selected):renderMissingQuestion()}${renderNoteEditor(draft,Boolean(question),editing)}</div>`;
+  else if(bubbleTab==='ask')body=AskReader.render(original);
   else body=`<div class="connections"><p class="connection-intro">${concepts.length?'知识定义跨页复用；原文概念与延伸理解分别标明。':'本处暂无已验证的关联知识。'}</p>${concepts.map(concept=>{const c=AIReader.concept(h,concept);return `<button class="concept-card" data-concept="${concept}" aria-expanded="false"><span class="concept-icon">${icon(c.icon)}</span><span><strong>${c.name}</strong><small>${c.subtitle}</small></span>${icon('chevron')}</button><p class="concept-detail" data-detail="${concept}" hidden>${c.description}</p>`;}).join('')}</div>`;
-  $('#bubble-body').innerHTML=`<blockquote class="bubble-quote">${escapeHTML(h.quote)}</blockquote>${h.rationale?`<p class="annotation-rationale">${escapeHTML(h.rationale)}</p>`:''}<div class="bubble-tabs" role="tablist"><button data-bubble-tab="question" class="${bubbleTab==='question'?'active':''}" role="tab" aria-selected="${bubbleTab==='question'}">${icon('spark')}思考题</button><button data-bubble-tab="connections" class="${bubbleTab==='connections'?'active':''}" role="tab" aria-selected="${bubbleTab==='connections'}">${icon('network')}关联知识 <span>${concepts.length}</span></button></div>${body}`;
+  $('#bubble-body').innerHTML=`<blockquote class="bubble-quote">${escapeHTML(h.quote)}</blockquote>${h.rationale?`<p class="annotation-rationale">${escapeHTML(h.rationale)}</p>`:''}<div class="bubble-tabs" role="tablist"><button data-bubble-tab="question" class="${bubbleTab==='question'?'active':''}" role="tab" aria-selected="${bubbleTab==='question'}">${icon('spark')}思考题</button><button data-bubble-tab="ask" class="${bubbleTab==='ask'?'active':''}" role="tab" aria-selected="${bubbleTab==='ask'}">${icon('bulb')}问 AI</button><button data-bubble-tab="connections" class="${bubbleTab==='connections'?'active':''}" role="tab" aria-selected="${bubbleTab==='connections'}">${icon('network')}关联知识 <span>${concepts.length}</span></button></div>${body}`;
   requestAnimationFrame(positionBubble);
+  if(selection&&$('#ask-input')&&!$('#ask-input').disabled){$('#ask-input').focus({preventScroll:true});$('#ask-input').setSelectionRange(...selection);}
 }
 function saveAnswer() {
   const h=activeHighlight;if(!h)return;
@@ -591,6 +598,7 @@ function applySettings() {
 async function navigateTo(number,{jump=Math.abs(number-pageNumber)>1}={}) {
   if(!Number.isInteger(number)||number<1||number>book.pageCount)return;
   if(number===pageNumber)return;
+  AskReader.stop();
   if(book.kind==='pdf'&&PDFReader.page(number)){
     clearTimeout(pdfProgressTimer);closeBubble();hideSelection();
     activatePDFPage(PDFReader.page(number),{notify:false});PDFReader.goTo(number);
@@ -708,7 +716,7 @@ $('#drawer-content').addEventListener('click',event=>{
   const button=event.target.closest('[data-delete-note]');if(button){if(button.dataset.confirm!=='true'){button.dataset.confirm='true';button.textContent='确认删除';return;}state.notes=state.notes.filter(note=>note.id!==button.dataset.deleteNote);persist();renderCounts();renderDrawer();}
 });
 $('#close-bubble').addEventListener('click',closeBubble);
-$('#bubble-delete').addEventListener('click',()=>{if(!activeHighlight?.custom)return;state.annotations[key()]=annotations().filter(h=>h.id!==activeHighlight.id);closeBubble();paintHighlights();renderCounts();persist();toast('已删除这条划线。');});
+$('#bubble-delete').addEventListener('click',()=>{if(!activeHighlight?.custom)return;AskReader.stop();state.annotations[key()]=annotations().filter(h=>h.id!==activeHighlight.id);closeBubble();paintHighlights();renderCounts();persist();toast('已删除这条划线。');});
 $('#bubble-body').addEventListener('click',event=>{
   const tab=event.target.closest('[data-bubble-tab]');if(tab){bubbleTab=tab.dataset.bubbleTab;renderBubble();return;}
   const choice=event.target.closest('[data-choice]');if(choice){state.answers[answerKey(activeHighlight)]=Number(choice.dataset.choice);persist();const scroll=$('#bubble-scroll').scrollTop;renderBubble();$('#bubble-scroll').scrollTop=scroll;return;}
@@ -721,6 +729,7 @@ $('#bubble-body').addEventListener('input',event=>{if(event.target.id==='answer-
 $('#selection-popover').addEventListener('pointerdown',event=>event.preventDefault());
 $$('[data-color]').forEach(button=>button.addEventListener('click',()=>{selectedColor=button.dataset.color;$$('[data-color]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',b===button);});}));
 $('#highlight-selection').addEventListener('click',()=>createHighlight(false));$('#explore-selection').addEventListener('click',()=>createHighlight(true));
+$('#ask-selection').addEventListener('click',()=>createHighlight(true,'ask'));
 for(const id of ['analysis-info','about-button'])$('#'+id).addEventListener('click',()=>$('#info-dialog').showModal());$('#understood-button').addEventListener('click',()=>$('#info-dialog').close());
 $('#reader-scroll').addEventListener('scroll',()=>{positionBubble();$('#selection-popover').hidden=true;},{passive:true});
 document.addEventListener('pointerdown',event=>{

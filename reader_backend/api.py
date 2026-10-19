@@ -12,6 +12,7 @@ from .storage import Store
 from .documents import Documents
 from .scheduler import Scheduler
 from .events import EventHub, stream_events
+from .questions import PassageQuestion, question_context, answer_question
 
 
 class ReadingProgress(BaseModel):
@@ -118,6 +119,17 @@ def create_app(settings=None, runner=None):
         scheduler.wake(queued['superseded_jobs'])
         return queued
 
+    @app.post('/api/books/{book_id}/ask')
+    async def ask(book_id: str, body: PassageQuestion):
+        if not settings.api_key:
+            raise HTTPException(503, '尚未配置模型密钥')
+        if settings.model not in MODELS or settings.effort not in ('none','low','medium','high'):
+            raise HTTPException(503, '模型配置无效')
+        book, material = question_context(store, book_id, body)
+        return StreamingResponse(answer_question(documents, settings, book, material, body),
+                                 media_type='text/event-stream',
+                                 headers={'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no'})
+
     @app.get('/api/books/{book_id}/status')
     def status(book_id: str, page: int = 1):
         book = store.book(book_id)
@@ -159,7 +171,7 @@ def create_app(settings=None, runner=None):
             return FileResponse(ROOT/filename, headers={'Cache-Control': 'no-cache'})
         return asset
 
-    for filename in ('app.js', 'pdf-reader.js', 'ai-reader.js', 'content.js', 'styles.css', 'demo.html', '打开量化投资的黑箱.pdf', 'examples/reading-practice.txt'):
+    for filename in ('app.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'content.js', 'styles.css', 'demo.html', '打开量化投资的黑箱.pdf', 'examples/reading-practice.txt'):
         app.add_api_route('/'+filename, serve_asset(filename), methods=['GET'])
     app.mount('/vendor', StaticFiles(directory=ROOT/'vendor'), name='vendor')
     app.mount('/assets', StaticFiles(directory=ROOT/'assets'), name='assets')

@@ -32,9 +32,9 @@ class ProviderChatOpenAI(ChatOpenAI):
         return payload
 
 
-def create_model(settings: Settings,model: str,effort: str):
+def create_model(settings: Settings,model: str,effort: str,*,max_tokens=12000):
     common=dict(model=model,api_key=settings.api_key,base_url=settings.base_url,
-        max_tokens=12000,timeout=settings.request_timeout,max_retries=1,
+        max_tokens=max_tokens,timeout=settings.request_timeout,max_retries=1,
         default_headers={'User-Agent':'OpenAI/Python 3.31.0'})
     if model.startswith('deepseek/') and effort=='none':
         # This gateway still returned reasoning through Chat Completions with

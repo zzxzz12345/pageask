@@ -12,7 +12,7 @@ def data_uri(path, mime):
 
 html = (ROOT / "index.html").read_text()
 css = (ROOT / "styles.css").read_text()
-js = (ROOT / "content.js").read_text() + "\n" + (ROOT / "pdf-reader.js").read_text() + "\n" + (ROOT / "ai-reader.js").read_text() + "\n" + (ROOT / "app.js").read_text()
+js = '\n'.join((ROOT / name).read_text() for name in ('content.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'app.js'))
 
 for path in ("assets/quant-cover.png", "assets/quant-page-55.png"):
     if not (ROOT / path).is_file():
@@ -52,6 +52,7 @@ js = js.replace("new URL('./vendor/pdf.worker.min.mjs',document.baseURI).href", 
 script = re.sub(r"</script", r"<\\/script", bootstrap + js, flags=re.IGNORECASE)
 html = html.replace('<link rel="stylesheet" href="styles.css">', "<style>\n" + css + "\n</style>")
 html = html.replace('<script src="ai-reader.js" defer></script>', "")
+html = html.replace('<script src="ask-reader.js" defer></script>', "")
 html = html.replace('<script src="pdf-reader.js" defer></script>', "")
 html = html.replace('<script src="app.js" defer></script>', "")
 html = html.replace('<script src="content.js" defer></script>', "")

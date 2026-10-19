@@ -220,3 +220,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 .knowledge-item{border:1px solid #dfdcd2;background:#faf9f5;border-radius:10px;margin:12px 0;padding:14px;color:#292c25}.knowledge-item summary{cursor:pointer;font-size:15px;font-weight:600;line-height:1.6}.knowledge-item summary small{display:block;font-size:11px;color:#616456;font-weight:400;margin-top:4px}.knowledge-item p{font-size:14px;line-height:1.9;margin:12px 0}.knowledge-id{font-size:10px;color:#6c6f62;overflow-wrap:anywhere}.knowledge-sources{margin-top:12px}.knowledge-sources button{border:1px solid #d8d4c7;border-radius:4px;background:#efede3;color:#663f2f;padding:4px 8px;font-size:11px;cursor:pointer}.knowledge-sources blockquote{margin:7px 0 14px;font-size:12px;line-height:1.8;color:#505448;border-left:2px solid #b6a891;padding-left:10px}.knowledge-evidence{display:block;border-top:1px solid #dedbd2;margin-top:10px;padding-top:10px;font-size:12px;color:#53564a}
 .drawer-tabs button{white-space:nowrap}.drawer-footer{font-size:10px}
 @media(max-height:800px){.ai-status-panel{padding:9px;margin-bottom:10px}.ai-status-panel p{margin:3px 0 6px}.sidebar-bottom{padding-top:10px}}
+
+/* Passage questions share the anchored bubble and the warm-paper palette. */
+.bubble-tabs{gap:14px}.bubble-tabs>button{white-space:nowrap}
+.ask-intro,.ask-empty{font-size:12px;line-height:1.8;color:var(--muted);margin:0 0 12px}
+.ask-empty{padding:12px 0}
+.ask-message{padding:12px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;overflow-wrap:anywhere}
+.ask-message.user{background:#efebe2}.ask-message.assistant{background:#fdfcf9}
+.ask-message>strong{font-size:11px;color:var(--secondary)}
+.ask-message-text{font-size:14px;line-height:1.9;white-space:pre-wrap;margin-top:6px;color:var(--text)}
+.ask-message>small{display:block;font-size:11px;color:var(--muted);margin-top:7px}
+.ask-suggestions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.ask-suggestions button{border:1px solid #cdc5b7;border-radius:5px;padding:7px 8px;font-size:11px;color:#713e2d;background:#f4eee3}
+.ask-panel textarea{width:100%;resize:vertical;min-height:78px;max-height:180px;padding:10px 12px;border:1px solid #b8aa97;border-radius:6px;background:#fdfcf9;color:var(--text);font:13px/1.8 var(--sans)}
+.ask-panel textarea::placeholder{color:var(--muted)}
+.ask-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:9px 0 4px}
+.ask-actions>span{font-size:10px;line-height:1.6;color:var(--muted)}
+.ask-actions>button{display:flex;align-items:center;gap:6px;font-size:12px;background:var(--accent);color:#fff;border-radius:5px;padding:9px 13px;white-space:nowrap}
+.ask-save-note{display:flex;align-items:center;gap:6px;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--line);width:100%;font-size:12px;color:#88452f}
+.ask-error{font-size:12px;line-height:1.8;padding:9px 11px;border:1px solid #c5916b;border-radius:5px;background:#f8eddf;color:#70451f}
+.ask-panel button:disabled{opacity:.55;cursor:default}
+.selection-popover{max-width:calc(100vw - 24px)}
+@media(max-width:720px){.bubble-tabs{gap:9px}.bubble-tabs>button{font-size:11px}.selection-popover{flex-wrap:wrap}.ask-message-text{font-size:13px}}
