@@ -1,0 +1,32 @@
+.DS_Store
+tmp/
+.playwright-mcp/
+__pycache__/
+.venv/
+.env
+.env.*
+!.env.example
+.reader-data/
+.pytest_cache/
+*.pyc
+
+# Credentials, private keys, local exports and runtime data
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+*.sqlite*
+*.db
+coverage/
+.coverage
+htmlcov/
+.ruff_cache/
+.idea/
+.vscode/
+
+# User books and generated demos may contain the complete original document
+*.pdf
+*.epub
+demo.html
+assets/*.png

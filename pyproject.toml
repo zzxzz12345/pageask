@@ -1,0 +1,23 @@
+[project]
+name = "pageask"
+version = "0.2.0"
+description = "PageAsk: read original documents, ask better questions, connect knowledge"
+requires-python = ">=3.12"
+dependencies = [
+  "langchain>=1.0,<2",
+  "langchain-openai>=1.0,<2",
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "python-multipart>=0.0.18",
+  "pymupdf>=1.25,<2",
+  "python-dotenv>=1.0",
+  "httpx>=0.28,<1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.25"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]

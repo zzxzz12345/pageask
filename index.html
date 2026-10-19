@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f8f7f3">
+  <meta name="description" content="页问 · AI 伴读。让每一次阅读，都多一层思考。">
+  <title>页问 · PageAsk · AI 伴读</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23a84e33'/%3E%3Cpath d='M17 43V20c8-2 12 0 15 4 3-4 7-6 15-4v23c-8-2-12 0-15 4-3-4-7-6-15-4Z' fill='none' stroke='%23fff' stroke-width='3'/%3E%3Cpath d='M32 24v23' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="content.js" defer></script>
+  <script src="pdf-reader.js" defer></script>
+  <script src="ai-reader.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="svg-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 4.5c4-1 6-.5 9 1.5 3-2 5-2.5 9-1.5v15c-4-1-6-.5-9 1.5-3-2-5-2.5-9-1.5zM12 6v15"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 3 2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4zM20 2v4m-2-2h4"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="m15 4 5 5M4 20l5-1 12-12a2.1 2.1 0 0 0-5-5L4 14zM13 20h8"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
+    <symbol id="i-focus" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24"><circle cx="12" cy="5" r="3"/><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/><path d="m10.5 7.5-4 8m7-8 4 8M8 18h8"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6m-5 3h4M8 14a7 7 0 1 1 8 0c-1 .7-1 1.5-1 2H9c0-.5 0-1.3-1-2z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.01"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M19 3C7 3 3 8 5 15s15 4 14-12ZM4 21 15 10"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></symbol>
+  </defs></svg>
+
+  <header class="topbar">
+    <a href="#" class="brand" id="home-link" aria-label="返回示例书籍"><span class="brand-mark"><svg><use href="#i-book"/></svg></span><strong>页问</strong><span class="brand-divider"></span><span class="brand-caption">AI 伴读</span></a>
+    <div class="breadcrumb"><span>我的书架</span><svg class="icon"><use href="#i-chevron"/></svg><span id="breadcrumb-title">打开量化投资的黑箱</span></div>
+    <div class="top-actions"><button class="quiet-button" id="notes-button"><svg class="icon"><use href="#i-pen"/></svg>笔记 <span id="note-count">0</span></button><button class="import-trigger outline-button"><svg class="icon"><use href="#i-plus"/></svg>导入书籍</button><button class="icon-button" id="about-button" aria-label="关于这个 Demo"><svg class="icon"><use href="#i-info"/></svg></button></div>
+  </header>
+  <div class="workspace">
+    <aside class="library-sidebar" id="library-sidebar" aria-label="书籍目录">
+      <div class="book-summary"><div class="mini-cover" aria-hidden="true"><svg class="icon"><use href="#i-book"/></svg></div><div class="book-meta"><span class="format-badge" id="book-format">PDF 原版</span><h1 id="book-title">打开量化投资的黑箱</h1><p id="book-author">里什·纳兰 · 原书第 2 版</p></div></div>
+      <div class="side-tabs" role="tablist" aria-label="书籍导航"><button class="active" id="contents-tab" role="tab" aria-selected="true"><svg class="icon"><use href="#i-list"/></svg>目录</button><button id="bookmarks-tab" role="tab" aria-selected="false"><svg class="icon"><use href="#i-bookmark"/></svg>书签 <span id="bookmark-count">0</span></button></div>
+      <nav class="chapter-list" id="chapter-list" aria-label="章节目录"></nav>
+      <div class="sidebar-bottom"><section class="ai-status-panel" aria-label="AI 批注状态"><div><svg class="icon"><use href="#i-spark"/></svg><strong id="ai-state" role="status">正在连接伴读</strong></div><p id="ai-detail">原文可继续阅读，批注在后台准备</p><button id="ai-retry" hidden>重试未完成批注</button><button id="knowledge-button"><svg class="icon"><use href="#i-network"/></svg>本书知识库 <span id="knowledge-count">0</span><svg class="icon"><use href="#i-chevron"/></svg></button></section><div class="reading-progress"><div><span>阅读进度</span><strong id="progress-label">12%</strong></div><div class="progress-track"><span id="progress-fill"></span></div><p id="progress-detail">PDF 第 55 / 455 页</p></div><button class="source-button import-trigger"><svg class="icon"><use href="#i-upload"/></svg><span>带上你正在读的书<small>PDF / EPUB / TXT</small></span><svg class="icon"><use href="#i-plus"/></svg></button><div class="local-message"><svg class="icon"><use href="#i-lock"/></svg>原件与阅读记录，保存在本地</div></div>
+    </aside>
+    <main class="reader" id="reader">
+      <div class="reader-toolbar"><div class="reader-location"><button class="icon-button" id="mobile-contents" aria-label="切换目录"><svg class="icon"><use href="#i-list"/></svg></button><span class="view-badge" id="view-badge">PDF 原版</span><span id="current-chapter-label">第 3 章 · 阿尔法模型</span></div><div class="reader-actions"><div class="zoom-control"><button class="icon-button" id="zoom-out" aria-label="缩小页面">−</button><button id="zoom-fit" title="恢复适合宽度" aria-label="恢复适合宽度">100%</button><button class="icon-button" id="zoom-in" aria-label="放大页面">＋</button></div><span class="toolbar-divider"></span><button class="icon-button" id="bookmark-button" aria-label="添加书签"><svg class="icon"><use href="#i-bookmark"/></svg></button><button class="icon-button" id="focus-button" aria-label="进入专注阅读"><svg class="icon"><use href="#i-focus"/></svg></button><button class="icon-button" id="settings-button" aria-label="阅读设置"><svg class="icon"><use href="#i-settings"/></svg></button></div></div>
+      <div class="reading-instruction"><span><svg class="icon"><use href="#i-pen"/></svg>拖选文字即可划线，点击划线打开思考气泡</span><button id="open-highlights">本页划线 <strong id="highlight-count">3</strong><svg class="icon"><use href="#i-chevron"/></svg></button></div>
+      <div class="reader-scroll" id="reader-scroll" tabindex="0" aria-label="书籍正文，可上下滚动阅读"><div id="document-stage" class="document-stage" aria-label="书籍阅读区域"><div class="document-loading"><span class="loading-ring"></span>正在打开原书……</div></div><p class="reader-footnote" id="reader-footnote">保留原书排版，让思考停在文字发生的地方。</p></div>
+      <footer class="reader-footer"><span id="render-status"><i class="status-dot"></i>原版 PDF · 可选择文字</span><div class="page-controls"><button class="icon-button" id="prev-page" aria-label="上一页"><svg class="icon rotate"><use href="#i-chevron"/></svg></button><label><span class="sr-only">当前页码</span><input id="page-input" type="number" min="1" value="55" aria-label="跳转页码"><span id="total-pages">/ 455</span></label><button class="icon-button" id="next-page" aria-label="下一页"><svg class="icon"><use href="#i-chevron"/></svg></button></div><button class="analysis-label" id="analysis-info">正在连接伴读<svg class="icon"><use href="#i-info"/></svg></button></footer>
+      <div class="settings-popover" id="settings-popover" hidden><div class="popover-heading">阅读设置<button class="icon-button" id="close-settings" aria-label="关闭设置"><svg class="icon"><use href="#i-close"/></svg></button></div><label class="toggle-row"><span>显示划线</span><input id="highlight-toggle" type="checkbox" checked></label><div class="font-settings"><span>EPUB / TXT 字号</span><button id="font-smaller" aria-label="缩小正文字号">A−</button><span id="font-value">19</span><button id="font-larger" aria-label="放大正文字号">A＋</button></div><p>PDF 使用原书字体与配色，可通过上方缩放调整阅读大小。</p></div>
+    </main>
+  </div>
+  <aside class="notes-drawer" id="notes-drawer" aria-label="阅读记录" hidden><div class="drawer-heading"><div><h2>阅读留下的线索</h2><p>让你的思考，可以再次被找到。</p></div><button id="close-drawer" class="icon-button" aria-label="关闭阅读记录"><svg class="icon"><use href="#i-close"/></svg></button></div><div class="drawer-tabs" role="tablist"><button class="active" id="drawer-highlights-tab" role="tab" aria-selected="true">本页划线 <span id="drawer-highlight-count">3</span></button><button id="drawer-notes-tab" role="tab" aria-selected="false">我的笔记 <span id="drawer-note-count">0</span></button><button id="drawer-knowledge-tab" role="tab" aria-selected="false">知识库</button></div><div class="drawer-scroll" id="drawer-content"></div><div class="drawer-footer"><svg class="icon"><use href="#i-lock"/></svg>笔记在浏览器 · AI 批注与知识库在本地服务</div></aside>
+  <section id="thought-bubble" class="thought-bubble" role="dialog" aria-modal="false" aria-label="划线处的思考与关联" hidden><div class="bubble-heading"><span><svg class="icon"><use href="#i-spark"/></svg><span id="bubble-title">从这里，多想一步</span></span><div><button class="icon-button" id="bubble-delete" aria-label="删除这条划线" hidden><svg class="icon"><use href="#i-close"/></svg></button><button class="icon-button" id="close-bubble" aria-label="关闭思考气泡"><svg class="icon"><use href="#i-close"/></svg></button></div></div><div class="bubble-scroll" id="bubble-scroll"><div id="bubble-body"></div></div><footer class="bubble-footer"><span id="bubble-source-label">本页原文 · 预设示例题</span><span>先判断，再理解</span></footer></section>
+  <div id="selection-popover" class="selection-popover" hidden><div class="highlight-colors" role="group" aria-label="划线颜色"><button class="color-dot active" data-color="yellow" aria-label="黄色划线" aria-pressed="true"></button><button class="color-dot" data-color="blue" aria-label="蓝色划线" aria-pressed="false"></button><button class="color-dot" data-color="purple" aria-label="紫色划线" aria-pressed="false"></button></div><span></span><button id="highlight-selection"><svg class="icon"><use href="#i-pen"/></svg>划线</button><button id="explore-selection"><svg class="icon"><use href="#i-spark"/></svg>划线并思考</button></div>
+  <div class="toast" role="status" id="toast" hidden></div>
+  <dialog id="import-dialog" class="import-dialog"><form method="dialog"><button class="dialog-close icon-button" aria-label="关闭导入"><svg class="icon"><use href="#i-close"/></svg></button></form><span class="dialog-symbol"><svg class="icon"><use href="#i-book"/></svg></span><h2>下一本，想读什么？</h2><p>打开原书，在文字旁留下你的思考。</p><label class="drop-zone" id="drop-zone"><input type="file" id="file-input" accept=".epub,.pdf,.txt"><svg class="icon"><use href="#i-upload"/></svg><strong>点击选择，或把书籍拖到这里</strong><span>PDF / EPUB / TXT · 最大 20 MB</span></label><div id="import-status" class="import-status" role="status" hidden></div><div class="import-note"><svg class="icon"><use href="#i-lock"/></svg><span>PDF 保留原始版式，EPUB 显示书内章节。<br>原件在本地解析；AI 批注会发送批次文字与按需图片到模型服务。</span></div><button id="load-demo" class="demo-book-button"><span class="small-book-icon"><svg class="icon"><use href="#i-book"/></svg></span><span><strong>打开量化投资的黑箱</strong><small>回到第 3 章 · 原版 PDF 第 55 页</small></span><svg class="icon"><use href="#i-arrow"/></svg></button></dialog>
+  <dialog id="info-dialog" class="info-dialog"><form method="dialog"><button class="dialog-close icon-button" aria-label="关闭说明"><svg class="icon"><use href="#i-close"/></svg></button></form><span class="dialog-symbol"><svg class="icon"><use href="#i-spark"/></svg></span><h2>思考，就在原文旁边</h2><p>PDF 从原件连续纵向显示，页问保留空隙，文字上叠加可保存的划线。EPUB 显示书内章节及图片，同样支持选词划线。</p><div class="info-flow"><span>选中文字</span><svg class="icon"><use href="#i-arrow"/></svg><span>留下划线</span><svg class="icon"><use href="#i-arrow"/></svg><span>气泡思考</span></div><p>AI 首次准备前方 10 页；每向前阅读 5 页，补充后面 5 页。先发布当前页，再逐批补充；提交后自动显示。每页最多 3 处，合计不超过原文的 14%，也允许不划线。点击划线，用选择题检验理解；知识定义跨页复用。</p><p class="muted">本地后端通过 LangChain 调用模型，当前批次的文字与按需整页图片会发送至配置的模型服务。密钥仅在后端。手动划线与笔记保存在浏览器，AI 批注与知识库保存在本机数据库；批注尚不写回原书。离线 HTML 仅第55页提供预设示例题。手动划线没有关联AI题目时会明确提示，不使用固定模板题。EPUB / TXT 按章节或文本节准备批注。</p><button class="primary-button" id="understood-button">开始阅读<svg class="icon"><use href="#i-arrow"/></svg></button></dialog>
+</body>
+</html>
