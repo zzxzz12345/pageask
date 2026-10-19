@@ -240,5 +240,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{
 .ask-save-note{display:flex;align-items:center;gap:6px;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--line);width:100%;font-size:12px;color:#88452f}
 .ask-error{font-size:12px;line-height:1.8;padding:9px 11px;border:1px solid #c5916b;border-radius:5px;background:#f8eddf;color:#70451f}
 .ask-panel button:disabled{opacity:.55;cursor:default}
+.bubble-scroll .katex,.drawer-scroll .katex{font-size:1.06em;white-space:normal;color:var(--text)}
+.bubble-scroll .katex-display,.drawer-scroll .katex-display{overflow-x:auto;overflow-y:hidden;max-width:100%;margin:12px 0;padding:3px 0}
+.bubble-quote:has(.katex){display:block;-webkit-line-clamp:unset;max-height:160px;overflow:auto}
+.ask-cache{display:block;margin-top:7px;font-size:10px;color:var(--muted)}
 .selection-popover{max-width:calc(100vw - 24px)}
 @media(max-width:720px){.bubble-tabs{gap:9px}.bubble-tabs>button{font-size:11px}.selection-popover{flex-wrap:wrap}.ask-message-text{font-size:13px}}

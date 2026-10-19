@@ -56,6 +56,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS claims(book_id TEXT,page INTEGER,policy TEXT,job_id TEXT,PRIMARY KEY(book_id,page,policy));
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT,book_id TEXT,kind TEXT,payload TEXT,created REAL);
             CREATE INDEX IF NOT EXISTS events_book_cursor ON events(book_id,id);
+            CREATE TABLE IF NOT EXISTS question_prefixes(id TEXT PRIMARY KEY,content TEXT,created REAL);
             ''')
             if 'current_page' not in {row[1] for row in db.execute('PRAGMA table_info(reading)')}:
                 db.execute('ALTER TABLE reading ADD COLUMN current_page INTEGER')
@@ -107,6 +108,16 @@ class Store:
             if not row:
                 raise KeyError('页码不存在')
             return dict(row)
+
+    def question_prefix(self, identifier):
+        with self.connection() as db:
+            row=db.execute('SELECT content FROM question_prefixes WHERE id=?',(identifier,)).fetchone()
+            return json.loads(row[0]) if row else None
+
+    def freeze_question_prefix(self, identifier, content):
+        with self.connection() as db:
+            db.execute('INSERT OR IGNORE INTO question_prefixes VALUES(?,?,?)',(identifier,dumps(content),time.time()))
+            return json.loads(db.execute('SELECT content FROM question_prefixes WHERE id=?',(identifier,)).fetchone()[0])
 
     def search_knowledge(self, query, limit=8):
         normalized = concept_key(query)

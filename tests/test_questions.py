@@ -9,7 +9,7 @@ from langchain.messages import AIMessageChunk, HumanMessage, SystemMessage
 
 from reader_backend.api import create_app
 from reader_backend.config import Settings
-from reader_backend.questions import PassageQuestion, question_context, answer_question
+from reader_backend.questions import PassageQuestion, question_context, answer_question, stable_prefix
 from reader_backend.documents import Documents
 from reader_backend.storage import Store
 from reader_backend.agent import create_model
@@ -133,7 +133,8 @@ async def test_full_highlight_history_reaches_responses_stream_in_order(material
                   'model':settings.model,'output':[{'id':'msg_history','type':'message',
                     'role':'assistant','status':'completed','content':[{
                         'type':'output_text','text':'我会沿用第一轮的例子。','annotations':[]}]}],
-                  'usage':{'input_tokens':100,'output_tokens':10,'total_tokens':110}}
+                  'usage':{'input_tokens':100,'output_tokens':10,'total_tokens':110,
+                           'input_tokens_details':{'cached_tokens':64 if len(requests)>1 else 0}}}
         events=[{'type':'response.created','sequence_number':0,
                  'response':{**response,'status':'in_progress','output':[]}},
                 {'type':'response.output_text.delta','sequence_number':1,'item_id':'msg_history',
@@ -149,12 +150,23 @@ async def test_full_highlight_history_reaches_responses_stream_in_order(material
     try:
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
             response=await client.post(f'/api/books/{book["id"]}/ask',json={**question.model_dump(),'history':history})
+            following=await client.post(f'/api/books/{book["id"]}/ask',json={**question.model_dump(),
+                'question':'沿用第一轮的例子继续解释',
+                'history':[*history,{'role':'user','content':question.question},
+                           {'role':'assistant','content':'我会沿用第一轮的例子。'}]})
         assert response.status_code==200
         assert decode_events(response.text)[-1]['type']=='done'
         assert '我会沿用第一轮的例子。' in response.text
+        first_usage=decode_events(response.text)[-1]['usage']
+        next_usage=decode_events(following.text)[-1]['usage']
+        assert first_usage['cached_tokens']==0
+        assert next_usage['cached_tokens']==64
+        assert first_usage['prefix_id']==next_usage['prefix_id']
+        assert not first_usage['prefix_reused'] and next_usage['prefix_reused']
     finally:
         await transport.aclose()
-    assert len(requests)==1
+    assert len(requests)==2
+    assert requests[1]['input'][:len(requests[0]['input'])]==requests[0]['input']
     wire=requests[0]
     assert wire['stream'] and wire['store'] is False
     assert 'previous_response_id' not in wire
@@ -168,6 +180,40 @@ async def test_full_highlight_history_reaches_responses_stream_in_order(material
         assert original['role']==forwarded['role']
     assert '此前回答未完成' in content(messages[2])
     assert content(messages[-1])==question.question
+
+
+async def test_context_prefix_survives_knowledge_updates_and_restart(material):
+    store,documents,book,question=material
+    settings=Settings()
+    _,context=question_context(store,book['id'],question)
+    first,reused,identifier=await stable_prefix(documents,settings,book,context,question)
+    assert not reused
+    updated={**context,'existing_knowledge':[{'name':'因果检验','definition':'后续新增的知识定义'}]}
+    restored=Documents(Store(store.directory))
+    following,reused,key=await stable_prefix(restored,settings,book,updated,question)
+    assert reused and key==identifier and first==following
+    other=question.model_copy(update={'quote':'需要检查其他可能影响结果的因素。'})
+    _,other_context=question_context(store,book['id'],other)
+    _,reused,other_key=await stable_prefix(restored,settings,book,other_context,other)
+    assert not reused and other_key!=identifier
+
+
+async def test_pdf_prefix_renders_image_only_once_and_preserves_history_whitespace(tmp_path,monkeypatch):
+    import pymupdf
+    documents=Documents(Store(tmp_path))
+    with pymupdf.open() as pdf:
+        page=pdf.new_page();page.insert_text((50,80),'E = mc2')
+        book=documents.ingest(pdf.tobytes(),'formula.pdf')
+    question=PassageQuestion(page=1,quote='E = mc2',question='解释这个公式',
+                             history=[{'role':'assistant','content':'\n 上一轮回答。\n'}])
+    assert question.history[0].content=='\n 上一轮回答。\n'
+    _,context=question_context(documents.store,book['id'],question)
+    first,_,_=await stable_prefix(documents,Settings(),book,context,question)
+    def should_not_render(*args):
+        raise AssertionError('原图已缓存，追问不应重新渲染')
+    monkeypatch.setattr(documents,'image',should_not_render)
+    following,reused,_=await stable_prefix(documents,Settings(),book,context,question)
+    assert reused and first==following
 
 
 async def test_context_limit_error_preserves_history_and_does_not_leak_provider_error(material,monkeypatch):

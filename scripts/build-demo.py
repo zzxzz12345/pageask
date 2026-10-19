@@ -12,7 +12,14 @@ def data_uri(path, mime):
 
 html = (ROOT / "index.html").read_text()
 css = (ROOT / "styles.css").read_text()
-js = '\n'.join((ROOT / name).read_text() for name in ('content.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'app.js'))
+js = '\n'.join((ROOT / name).read_text() for name in ('vendor/katex/katex.min.js', 'vendor/katex/auto-render.min.js', 'math-render.js', 'content.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'app.js'))
+math_css=(ROOT/'vendor/katex/katex.min.css').read_text()
+def font_uri(match):
+    path=match[1].strip('"\'')
+    suffix=Path(path).suffix
+    mime={'.woff2':'font/woff2','.woff':'font/woff','.ttf':'font/ttf'}[suffix]
+    return 'url('+data_uri('vendor/katex/'+path,mime)+')'
+css=re.sub(r'url\(([^)]+)\)',font_uri,math_css)+'\n'+css
 
 for path in ("assets/quant-cover.png", "assets/quant-page-55.png"):
     if not (ROOT / path).is_file():
@@ -51,6 +58,9 @@ js = js.replace("new URL('./vendor/pdf.worker.min.mjs',document.baseURI).href", 
 # Prevent text content from accidentally terminating an inline script element.
 script = re.sub(r"</script", r"<\\/script", bootstrap + js, flags=re.IGNORECASE)
 html = html.replace('<link rel="stylesheet" href="styles.css">', "<style>\n" + css + "\n</style>")
+html = html.replace('<link rel="stylesheet" href="vendor/katex/katex.min.css">', '')
+for name in ('vendor/katex/katex.min.js','vendor/katex/auto-render.min.js','math-render.js'):
+    html=html.replace(f'<script src="{name}" defer></script>','')
 html = html.replace('<script src="ai-reader.js" defer></script>', "")
 html = html.replace('<script src="ask-reader.js" defer></script>', "")
 html = html.replace('<script src="pdf-reader.js" defer></script>', "")

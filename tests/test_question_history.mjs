@@ -26,6 +26,14 @@ function reader(saved={chats:{}},highlight='first'){
       listeners.click({target:{closest:selector=>selector==='#ask-send'?{}:null}});
       await new Promise(setImmediate);
     },
+    async key(event){
+      context.state.chats[`book/55/${context.activeHighlight.id}`]??={messages:[],draft:'通过键盘发送'};
+      let prevented=false;
+      listeners.keydown({target:{id:'ask-input'},key:'Enter',shiftKey:false,isComposing:false,
+                        preventDefault(){prevented=true;},...event});
+      await new Promise(setImmediate);
+      return prevented;
+    },
   };
 }
 
@@ -60,4 +68,14 @@ test('visible partial answers are retained with their interruption status',async
   assert.equal(current.requests[0].history[1].content,'已经显示的部分回答');
   assert.equal(current.requests[0].history[1].status,'stopped');
   assert.equal(current.requests[0].history[3].status,'error');
+});
+
+test('Enter sends, while Shift+Enter and IME confirmation do not send',async()=>{
+  const current=reader();
+  assert.equal(await current.key({shiftKey:true}),false);
+  assert.equal(await current.key({isComposing:true}),false);
+  assert.equal(await current.key({keyCode:229}),false);
+  assert.equal(current.requests.length,0);
+  assert.equal(await current.key({}),true);
+  assert.equal(current.requests.length,1);
 });

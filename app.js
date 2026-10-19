@@ -543,6 +543,7 @@ function renderBubble() {
   else if(bubbleTab==='ask')body=AskReader.render(original);
   else body=`<div class="connections"><p class="connection-intro">${concepts.length?'知识定义跨页复用；原文概念与延伸理解分别标明。':'本处暂无已验证的关联知识。'}</p>${concepts.map(concept=>{const c=AIReader.concept(h,concept);return `<button class="concept-card" data-concept="${concept}" aria-expanded="false"><span class="concept-icon">${icon(c.icon)}</span><span><strong>${c.name}</strong><small>${c.subtitle}</small></span>${icon('chevron')}</button><p class="concept-detail" data-detail="${concept}" hidden>${c.description}</p>`;}).join('')}</div>`;
   $('#bubble-body').innerHTML=`<blockquote class="bubble-quote">${escapeHTML(h.quote)}</blockquote>${h.rationale?`<p class="annotation-rationale">${escapeHTML(h.rationale)}</p>`:''}<div class="bubble-tabs" role="tablist"><button data-bubble-tab="question" class="${bubbleTab==='question'?'active':''}" role="tab" aria-selected="${bubbleTab==='question'}">${icon('spark')}思考题</button><button data-bubble-tab="ask" class="${bubbleTab==='ask'?'active':''}" role="tab" aria-selected="${bubbleTab==='ask'}">${icon('bulb')}问 AI</button><button data-bubble-tab="connections" class="${bubbleTab==='connections'?'active':''}" role="tab" aria-selected="${bubbleTab==='connections'}">${icon('network')}关联知识 <span>${concepts.length}</span></button></div>${body}`;
+  MathRender.render($('#bubble-body'));
   requestAnimationFrame(positionBubble);
   if(selection&&$('#ask-input')&&!$('#ask-input').disabled){$('#ask-input').focus({preventScroll:true});$('#ask-input').setSelectionRange(...selection);}
 }
@@ -564,13 +565,14 @@ function renderDrawer() {
   $('#drawer-highlights-tab').classList.toggle('active',drawerTab==='highlights');$('#drawer-notes-tab').classList.toggle('active',drawerTab==='notes');
   $('#drawer-highlights-tab').setAttribute('aria-selected',drawerTab==='highlights');$('#drawer-notes-tab').setAttribute('aria-selected',drawerTab==='notes');
   $('#drawer-knowledge-tab').classList.toggle('active',drawerTab==='knowledge');$('#drawer-knowledge-tab').setAttribute('aria-selected',drawerTab==='knowledge');
-  if(drawerTab==='knowledge'){$('#drawer-content').innerHTML=AIReader.renderKnowledge();return;}
+  if(drawerTab==='knowledge'){$('#drawer-content').innerHTML=AIReader.renderKnowledge();MathRender.render($('#drawer-content'));return;}
   if(drawerTab==='highlights'){
     $('#drawer-content').innerHTML=`<p class="drawer-section-label">第 ${pageNumber} ${book.kind==='pdf'?'页':'节'} · ${highlights().length} 处划线</p>`+(highlights().length?highlights().map(h=>`<button class="highlight-list-item" data-open-highlight="${h.id}"><span class="highlight-stripe ${h.color||'yellow'}"></span><span><strong>${h.custom?'我的划线':'阅读线索'}</strong><q>${escapeHTML(h.quote)}</q><small>点击回到原文，并打开思考气泡 ${icon('arrow')}</small></span></button>`).join(''):`<div class="empty-state">${icon('pen')}<h3>从你在意的一句话开始</h3><p>在原文中拖选文字，点击「划线」。</p></div>`);
   }else{
     const notes=bookNotes().slice().reverse();
     $('#drawer-content').innerHTML=notes.length?`<div class="notes-heading"><span>${notes.length} 条阅读笔记</span><button id="export-notes">${icon('download')}导出阅读记录</button></div>${notes.map(note=>`<article class="note-card"><blockquote>${escapeHTML(note.quote)}</blockquote><div class="note-question">${escapeHTML(note.question)}</div><p>${escapeHTML(note.answer)}</p><footer><span>${note.page?`第 ${note.page} ${book.kind==='pdf'?'页':'节'} · `:''}${new Date(note.createdAt).toLocaleDateString('zh-CN')}</span><button data-delete-note="${note.id}">删除</button></footer></article>`).join('')}`:`<div class="empty-state">${icon('pen')}<h3>把理解，写成自己的话</h3><p>点击划线，在思考气泡里做一个判断，<br>或记下此刻的想法。</p></div>`;
   }
+  MathRender.render($('#drawer-content'));
 }
 function scrollToHighlight(id) {
   const h=highlights().find(item=>item.id===id);if(!h)return;

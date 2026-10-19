@@ -156,7 +156,7 @@ const AIReader = (() => {
           if(!data)continue;
           const event=JSON.parse(data);
           if(event.type==='error')throw new Error(event.message||'回答未完成，请重试');
-          if(event.type==='done'){done=true;break;}
+          if(event.type==='done'){onEvent(event);done=true;break;}
           onEvent(event);
         }
         if(chunk.done&&!done)throw new Error('连接已中断，已收到的回答已保留，可重新提问');

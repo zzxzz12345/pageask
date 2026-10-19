@@ -171,7 +171,7 @@ def create_app(settings=None, runner=None):
             return FileResponse(ROOT/filename, headers={'Cache-Control': 'no-cache'})
         return asset
 
-    for filename in ('app.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'content.js', 'styles.css', 'demo.html', '打开量化投资的黑箱.pdf', 'examples/reading-practice.txt'):
+    for filename in ('app.js', 'pdf-reader.js', 'ai-reader.js', 'ask-reader.js', 'math-render.js', 'content.js', 'styles.css', 'demo.html', '打开量化投资的黑箱.pdf', 'examples/reading-practice.txt'):
         app.add_api_route('/'+filename, serve_asset(filename), methods=['GET'])
     app.mount('/vendor', StaticFiles(directory=ROOT/'vendor'), name='vendor')
     app.mount('/assets', StaticFiles(directory=ROOT/'assets'), name='assets')

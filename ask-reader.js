@@ -5,6 +5,12 @@ const AskReader=(()=>{
   const prompts=['解释这段话','举一个具体例子','这段话有哪些成立前提？'];
   const answerHTML=text=>escapeHTML(text).replace(/\*\*([^*\n]+)\*\*/g,'<strong>$1</strong>')
     .replace(/`([^`\n]+)`/g,'<code>$1</code>');
+  function cacheLabel(usage){
+    if(!usage)return '';
+    if(usage.cached_tokens==null)return '服务未返回缓存命中统计';
+    if(usage.cached_tokens>0)return `上下文缓存命中 · ${usage.cached_tokens} tokens`;
+    return usage.prefix_reused?'本次未命中上下文缓存':'首次请求 · 缓存未命中';
+  }
   function thread(h){
     state.chats??={};
     return state.chats[highlightKey(h)]??={messages:[],draft:''};
@@ -15,9 +21,9 @@ const AskReader=(()=>{
     const messages=chat.messages.map(message=>{
       const status=message.status==='stopped'?'已停止':message.status==='error'?'未完成':message.status==='streaming'&&!busy?'上次回答已中断':'';
       const text=message.content||(busy?'正在阅读选文……':'回答未完成，可以重新提问。');
-      return `<article class="ask-message ${message.role}" data-message-id="${message.id}"><strong>${message.role==='user'?'你':'AI 伴读'}</strong><div class="ask-message-text">${message.role==='assistant'?answerHTML(text):escapeHTML(text)}</div>${status?`<small>${status}</small>`:''}</article>`;
+      return `<article class="ask-message ${message.role}" data-message-id="${message.id}"><strong>${message.role==='user'?'你':'AI 伴读'}</strong><div class="ask-message-text">${message.role==='assistant'?answerHTML(text):escapeHTML(text)}</div>${status?`<small>${status}</small>`:''}${message.usage?`<small class="ask-cache">${escapeHTML(cacheLabel(message.usage))}</small>`:''}</article>`;
     }).join('');
-    return `<section class="ask-panel" aria-label="围绕划线问 AI"><p class="ask-intro">结合所选原文和本页内容回答，也可以继续追问。</p><div class="ask-messages" role="log" aria-live="off">${messages||'<p class="ask-empty">这句话，哪里让你想多问一步？</p>'}</div><div class="ask-suggestions">${prompts.map((prompt,i)=>`<button data-ask-prompt="${i}" ${busy?'disabled':''}>${escapeHTML(prompt)}</button>`).join('')}</div>${chat.error?`<p class="ask-error" role="alert">${escapeHTML(chat.error)}</p>`:''}<label class="sr-only" for="ask-input">关于这段原文的问题</label><textarea id="ask-input" maxlength="1000" rows="2" placeholder="输入你的问题，或点选上方的提问……" ${busy?'disabled':''}>${escapeHTML(chat.draft)}</textarea><div class="ask-actions"><span role="status">${busy?'正在回答 · 可以停止':'对话自动保存在这处划线'}</span>${busy?'<button id="ask-stop">停止回答</button>':'<button id="ask-send">发送'+icon('arrow')+'</button>'}</div>${chat.messages.some(message=>message.role==='assistant'&&message.content)?'<button id="ask-save-note" class="ask-save-note">'+icon('pen')+'将这段对话存入笔记</button>':''}</section>`;
+    return `<section class="ask-panel" aria-label="围绕划线问 AI"><p class="ask-intro">结合所选原文和本页内容回答，也可以继续追问。</p><div class="ask-messages" role="log" aria-live="off">${messages||'<p class="ask-empty">这句话，哪里让你想多问一步？</p>'}</div><div class="ask-suggestions">${prompts.map((prompt,i)=>`<button data-ask-prompt="${i}" ${busy?'disabled':''}>${escapeHTML(prompt)}</button>`).join('')}</div>${chat.error?`<p class="ask-error" role="alert">${escapeHTML(chat.error)}</p>`:''}<label class="sr-only" for="ask-input">关于这段原文的问题</label><textarea id="ask-input" aria-describedby="ask-keyboard-help" maxlength="1000" rows="2" placeholder="输入你的问题，或点选上方的提问……" ${busy?'disabled':''}>${escapeHTML(chat.draft)}</textarea><div class="ask-actions"><span id="ask-keyboard-help" role="status">${busy?'正在回答 · 可以停止':'Enter 发送 · Shift+Enter 换行'}</span>${busy?'<button id="ask-stop">停止回答</button>':'<button id="ask-send">发送'+icon('arrow')+'</button>'}</div>${chat.messages.some(message=>message.role==='assistant'&&message.content)?'<button id="ask-save-note" class="ask-save-note">'+icon('pen')+'将这段对话存入笔记</button>':''}</section>`;
   }
   function refresh(key,streaming=false){
     if(!visible(key))return;
@@ -26,6 +32,7 @@ const AskReader=(()=>{
     const scroll=$('#bubble-scroll'),follow=scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<90;
     const element=$(`[data-message-id="${message.id}"] .ask-message-text`);
     if(element)element.innerHTML=answerHTML(message.content);
+    MathRender.render(element);
     positionBubble();
     if(follow)scroll.scrollTop=scroll.scrollHeight;
   }
@@ -56,6 +63,7 @@ const AskReader=(()=>{
         if(event.type==='delta'&&typeof event.text==='string'){
           answer.content+=event.text;refresh(key,true);
         }
+        if(event.type==='done')answer.usage=event.usage;
       },request.controller.signal);
       answer.status='complete';
     }catch(error){
@@ -86,7 +94,7 @@ const AskReader=(()=>{
       if(prompt)void send(prompts[Number(prompt.dataset.askPrompt)]);
     });
     $('#bubble-body').addEventListener('keydown',event=>{
-      if(event.target.id==='ask-input'&&event.key==='Enter'&&(event.ctrlKey||event.metaKey)){
+      if(event.target.id==='ask-input'&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){
         event.preventDefault();void send();
       }
     });
