@@ -42,12 +42,12 @@ const AskReader=(()=>{
     if(!text){$('#ask-input')?.focus();return;}
     if(pending?.key===key)return;
     stop();
-    const history=chat.messages.filter(message=>message.status==='complete')
-      .slice(-10).map(({role,content})=>({role,content}));
+    const history=chat.messages.filter(message=>message.content?.trim())
+      .map(({role,content,status})=>({role,content,status:status||'complete'}));
     const user={id:uid(),role:'user',content:text,status:'complete'};
     const answer={id:uid(),role:'assistant',content:'',status:'streaming'};
-    // Keep storage bounded independently of the history sent to the model.
-    chat.messages=chat.messages.slice(-18);chat.messages.push(user,answer);chat.draft='';chat.error='';
+    // Keep the entire highlight-specific thread, including visible partial answers.
+    chat.messages.push(user,answer);chat.draft='';chat.error='';
     const request={key,controller:new AbortController(),answer,chat,question:text};pending=request;
     persist();refresh(key);
     if(visible(key))$('#bubble-scroll').scrollTop=$('#bubble-scroll').scrollHeight;

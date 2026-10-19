@@ -17,6 +17,8 @@
 - **跳页即切换。** 显式跳转会取消旧队列并从最新位置准备；旧任务迟到的写入被拒绝，已经完成的批注保留。
 - **适合长时间阅读。** 暖白背景、深色文字、克制的陶土色，支持缩放、专注模式、书签和 Markdown 阅读记录导出。
 
+每处划线拥有独立的对话历史。追问时会按顺序发送该处全部历史提问和 AI 回答，包括注明未完成状态的已显示回答片段；刷新后继续沿用，不按固定轮数截断，也不混入其他划线的对话。若超过模型实际上下文上限，会明确提示并保留历史。
+
 ## 快速开始
 
 需要 Git 和 [uv](https://docs.astral.sh/uv/getting-started/installation/)。项目使用 Python 3.12+，不需要 Node.js 或前端构建步骤。
@@ -111,6 +113,8 @@ uv run python scripts/build-demo.py
 ```sh
 uv sync --locked
 uv run pytest -q
+# 可选：需要本机 Node.js，使用内置测试工具检查前端完整历史与刷新恢复
+node --test tests/test_question_history.mjs
 ```
 
 常规测试使用隔离数据和模拟模型，不需要真实密钥。以下命令会请求真实模型并可能产生费用：

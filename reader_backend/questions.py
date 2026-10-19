@@ -15,6 +15,7 @@ class ConversationTurn(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     role: Literal['user', 'assistant']
     content: str = Field(min_length=1, max_length=8000)
+    status: Literal['complete', 'stopped', 'error', 'streaming'] = 'complete'
 
 
 class PassageQuestion(BaseModel):
@@ -22,10 +23,12 @@ class PassageQuestion(BaseModel):
     page: int = Field(ge=1)
     quote: str = Field(min_length=2, max_length=1500)
     question: str = Field(min_length=1, max_length=1000)
-    history: list[ConversationTurn] = Field(default_factory=list, max_length=10)
+    history: list[ConversationTurn] = Field(default_factory=list)
 
 
 QUESTION_PROMPT = '''你是页问的中文伴读助手。围绕读者选中的原文，直接回答读者的具体问题。
+书页材料后的对话历史都属于当前这处划线，按时间顺序提供。沿用前面对话中的例子、术语及读者的限定，结合历史理解追问中的指代，不要把每次提问当作独立问题。
+标为未完成的历史回答仅包含读者已经看到的部分，不能假定后面还有未显示的内容。
 先解释最关键的一点，通常用2至4个短段落、约200至500字；简单问题可以更短。需要时举一个具体例子。
 区分作者的说法、材料能支持的推断和你补充的知识；材料不足就明确说明，不能编造本书其他页的内容或出处。
 保留原文的限定条件。解释公式时对照当前页原图，用易读文字写出符号及其含义；无法确认时说明不确定处。
@@ -69,8 +72,11 @@ async def answer_question(documents, settings, book, material, question):
                 content.append({'type': 'image_url', 'image_url': {
                     'url': 'data:image/png;base64,'+base64.b64encode(image).decode()}})
             messages = [SystemMessage(QUESTION_PROMPT), HumanMessage(content=content)]
-            messages.extend((HumanMessage if turn.role == 'user' else AIMessage)(turn.content)
-                            for turn in question.history)
+            for turn in question.history:
+                text = turn.content
+                if turn.role == 'assistant' and turn.status != 'complete':
+                    text = '【此前回答未完成，以下为已显示的部分】\n'+text
+                messages.append((HumanMessage if turn.role == 'user' else AIMessage)(text))
             messages.append(HumanMessage(question.question))
             model = create_model(settings, settings.model, settings.effort, max_tokens=1800)
             stream = model.astream(messages)
@@ -93,9 +99,12 @@ async def answer_question(documents, settings, book, material, question):
                 yield event('done')
     except TimeoutError:
         yield event('error', message='回答等待超时，可保留问题后重试')
-    except Exception:
+    except Exception as error:
         # Provider errors can contain credentials or request bodies.
-        yield event('error', message='AI 暂时无法回答，请稍后重试')
+        if any(marker in str(error).lower() for marker in ('context_length_exceeded', 'maximum context length', 'context window')):
+            yield event('error', message='这处划线的完整对话已超过模型上下文上限；历史仍保留，请更换长上下文模型后重试')
+        else:
+            yield event('error', message='AI 暂时无法回答，请稍后重试')
     finally:
         if stream is not None:
             await stream.aclose()

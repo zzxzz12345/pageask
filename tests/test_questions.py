@@ -12,6 +12,7 @@ from reader_backend.config import Settings
 from reader_backend.questions import PassageQuestion, question_context, answer_question
 from reader_backend.documents import Documents
 from reader_backend.storage import Store
+from reader_backend.agent import create_model
 from test_progressive import serve
 
 
@@ -117,3 +118,66 @@ async def test_answer_arrives_before_completion_and_disconnect_cancels(material,
                         break
         await asyncio.wait_for(cancelled.wait(),3)
     assert not store.status(book['id'],1)['jobs']
+
+
+async def test_full_highlight_history_reaches_responses_stream_in_order(material,monkeypatch):
+    store,_,book,question=material
+    settings=replace(Settings(),data_dir=store.directory,api_key='test-key',
+                     model='deepseek/deepseek-v4.1-flash',effort='none')
+    history=[{'role':'assistant' if i%2 else 'user','content':f'第{i}条历史内容',
+              'status':'stopped' if i==1 else 'complete'} for i in range(26)]
+    requests=[]
+    def send(request):
+        requests.append(json.loads(request.content))
+        response={'id':'resp_history','object':'response','created_at':0,'status':'completed',
+                  'model':settings.model,'output':[{'id':'msg_history','type':'message',
+                    'role':'assistant','status':'completed','content':[{
+                        'type':'output_text','text':'我会沿用第一轮的例子。','annotations':[]}]}],
+                  'usage':{'input_tokens':100,'output_tokens':10,'total_tokens':110}}
+        events=[{'type':'response.created','sequence_number':0,
+                 'response':{**response,'status':'in_progress','output':[]}},
+                {'type':'response.output_text.delta','sequence_number':1,'item_id':'msg_history',
+                 'output_index':0,'content_index':0,'delta':'我会沿用第一轮的例子。'},
+                {'type':'response.completed','sequence_number':2,'response':response}]
+        body=''.join('event: '+event['type']+'\ndata: '+json.dumps(event,ensure_ascii=False)+'\n\n' for event in events)
+        return httpx.Response(200,request=request,headers={'content-type':'text/event-stream'},content=body.encode())
+    model=create_model(settings,settings.model,settings.effort,max_tokens=1800)
+    transport=httpx.AsyncClient(transport=httpx.MockTransport(send))
+    model.root_async_client._client=transport
+    monkeypatch.setattr('reader_backend.questions.create_model',lambda *args,**kwargs:model)
+    app=create_app(settings)
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://testserver') as client:
+            response=await client.post(f'/api/books/{book["id"]}/ask',json={**question.model_dump(),'history':history})
+        assert response.status_code==200
+        assert decode_events(response.text)[-1]['type']=='done'
+        assert '我会沿用第一轮的例子。' in response.text
+    finally:
+        await transport.aclose()
+    assert len(requests)==1
+    wire=requests[0]
+    assert wire['stream'] and wire['store'] is False
+    assert 'previous_response_id' not in wire
+    messages=[message for message in wire['input'] if message.get('role') in ('user','assistant')]
+    assert len(messages)==len(history)+2  # Page material, the full thread, current question.
+    def content(message):
+        value=message['content']
+        return value if isinstance(value,str) else ''.join(item.get('text','') for item in value)
+    for original,forwarded in zip(history,messages[1:-1]):
+        assert original['content'] in content(forwarded)
+        assert original['role']==forwarded['role']
+    assert '此前回答未完成' in content(messages[2])
+    assert content(messages[-1])==question.question
+
+
+async def test_context_limit_error_preserves_history_and_does_not_leak_provider_error(material,monkeypatch):
+    store,documents,book,question=material
+    class Model:
+        async def astream(self,messages):
+            raise RuntimeError('context_length_exceeded: test-secret and raw provider body')
+            yield
+    monkeypatch.setattr('reader_backend.questions.create_model',lambda *args,**kwargs:Model())
+    _,context=question_context(store,book['id'],question)
+    response=''.join([item async for item in answer_question(documents,Settings(),book,context,question)])
+    assert '上下文上限' in response and '历史仍保留' in response
+    assert 'test-secret' not in response
